@@ -7,6 +7,7 @@ import {
   getActiveApiKeyByHash,
   updateApiKeyAnalyticsEnabled,
 } from "../repositories/api-key.repository.js";
+import { logger } from "../adapters/logger.adapter.js";
 
 function generateRawKey(): string {
   const bytes = randomBytes(24);
@@ -31,6 +32,7 @@ export async function request(
     contactEmail: data.contactEmail,
   });
 
+  logger.info("API key created", { source: "api-keys", attributes: { prefix, name: data.name, contactEmail: data.contactEmail } });
   return { key: rawKey, prefix, name: inserted.name, isActive: inserted.isActive };
 }
 
@@ -48,5 +50,6 @@ export async function validate(
 }
 
 export async function setAnalyticsEnabled(id: string, enabled: boolean): Promise<void> {
+  logger.info("Analytics preference updated", { source: "api-keys", attributes: { id, enabled } });
   return updateApiKeyAnalyticsEnabled(id, enabled);
 }

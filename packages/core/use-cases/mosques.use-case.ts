@@ -2,6 +2,7 @@ import type { Mosque } from "../models/mosque.model.js";
 import type { PaginatedResult } from "../models/shared.model.js";
 import { MAX_PAGE_SIZE } from "../constants.js";
 import { ConflictError } from "../errors.js";
+import { logger } from "../adapters/logger.adapter.js";
 import {
   listMosques,
   getMosqueByIdOrSlug as dbGetByIdOrSlug,
@@ -61,7 +62,12 @@ export interface UpdateMosqueData {
 }
 
 export async function list(params: ListParams = {}): Promise<PaginatedResult<Mosque>> {
-  return listMosques(params);
+  const result = await listMosques(params);
+  logger.info("Mosques listed", {
+    source: "mosques",
+    attributes: { city: params.city ?? null, page: params.page ?? 1, total: result.total },
+  });
+  return result;
 }
 
 export async function getByIdOrSlug(
@@ -84,11 +90,13 @@ export async function create(
 ): Promise<Mosque> {
   const admin = await getAdminById(adminId);
   if (admin?.mosqueId) {
+    logger.warn("Mosque creation denied — admin already manages a mosque", { source: "mosques", attributes: { adminId, existingMosqueId: admin.mosqueId } });
     throw new ConflictError("You already manage a mosque");
   }
 
   const mosque = await insertMosque(data);
   await linkAdminToMosque(adminId, mosque.id);
+  logger.info("Mosque created", { source: "mosques", attributes: { mosqueId: mosque.id, name: data.name, city: data.city, adminId } });
   return mosque;
 }
 
@@ -96,9 +104,17 @@ export async function update(
   id: string,
   data: UpdateMosqueData,
 ): Promise<Mosque | undefined> {
-  return dbUpdateMosque(id, data);
+  const result = await dbUpdateMosque(id, data);
+  if (result) {
+    logger.info("Mosque updated", { source: "mosques", attributes: { mosqueId: id, fields: Object.keys(data) } });
+  }
+  return result;
 }
 
 export async function remove(id: string): Promise<boolean> {
-  return deleteMosque(id);
+  const deleted = await deleteMosque(id);
+  if (deleted) {
+    logger.info("Mosque deleted", { source: "mosques", attributes: { mosqueId: id } });
+  }
+  return deleted;
 }

@@ -1,4 +1,4 @@
-import { Api, Config, StackContext } from "sst/constructs";
+import { Api, Config, Cron, StackContext } from "sst/constructs";
 import * as ses from "aws-cdk-lib/aws-ses";
 
 export function MainStack({ stack }: StackContext) {
@@ -41,6 +41,20 @@ export function MainStack({ stack }: StackContext) {
   });
 
   api.attachPermissions(["ses:SendEmail", "ses:SendRawEmail"]);
+
+  // ── Log retention cron ───────────────────────────────────────────────────
+  new Cron(stack, "LogCleanup", {
+    schedule: "rate(1 day)",
+    job: {
+      function: {
+        handler: "packages/functions/crons/log-cleanup.handler",
+        bind: [NEON_DATABASE_URL],
+        environment: {
+          SST_STAGE: stack.stage,
+        },
+      },
+    },
+  });
 
   stack.addOutputs({
     ApiEndpoint: api.url,

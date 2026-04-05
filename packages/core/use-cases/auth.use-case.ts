@@ -7,6 +7,7 @@ import {
   getAdminByEmail,
   insertAdmin,
 } from "../repositories/admin.repository.js";
+import { logger } from "../adapters/logger.adapter.js";
 
 function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
@@ -40,6 +41,7 @@ export async function register(
 ): Promise<{ token: string; admin: AdminPublic }> {
   const existing = await getAdminByEmail(data.email);
   if (existing) {
+    logger.warn("Registration attempted with existing email", { source: "auth", attributes: { email: data.email } });
     throw new ConflictError("Email already registered");
   }
 
@@ -55,9 +57,11 @@ export async function register(
     if (err instanceof Error && err.message.includes("unique")) {
       throw new ConflictError("Email already registered");
     }
+    logger.error("Admin registration failed", { source: "auth", attributes: { email: data.email }, error: err instanceof Error ? err : undefined });
     throw err;
   }
 
+  logger.info("Admin registered", { source: "auth", attributes: { adminId: admin.id, email: data.email } });
   const token = await issueToken(admin.id);
   return { token, admin: toPublic(admin) };
 }
@@ -67,11 +71,18 @@ export async function login(
   password: string,
 ): Promise<{ token: string; admin: AdminPublic } | null> {
   const admin = await getAdminByEmail(email);
-  if (!admin) return null;
+  if (!admin) {
+    logger.warn("Login failed — email not found", { source: "auth", attributes: { email } });
+    return null;
+  }
 
   const valid = await compare(password, admin.passwordHash);
-  if (!valid) return null;
+  if (!valid) {
+    logger.warn("Login failed — incorrect password", { source: "auth", attributes: { email } });
+    return null;
+  }
 
+  logger.info("Admin logged in", { source: "auth", attributes: { adminId: admin.id, email } });
   const token = await issueToken(admin.id);
   return { token, admin: toPublic(admin) };
 }
@@ -84,7 +95,8 @@ export async function verifyToken(
     const sub = payload.sub;
     if (!sub) return null;
     return { sub };
-  } catch {
+  } catch (err) {
+    logger.warn("Token verification failed", { source: "auth", error: err instanceof Error ? err : undefined });
     return null;
   }
 }

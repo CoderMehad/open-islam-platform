@@ -10,6 +10,9 @@ import {
   date,
   uniqueIndex,
   index,
+  bigserial,
+  smallint,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 
@@ -109,4 +112,58 @@ export const apiKeys = pgTable(
       .defaultNow(),
   },
   (table) => [index("api_keys_key_hash_idx").on(table.keyHash)],
+);
+
+// ── Request Logs ────────────────────────────────────────────────────────────
+
+export const requestLogs = pgTable(
+  "request_logs",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    timestamp: timestamp("timestamp", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    requestId: varchar("request_id", { length: 36 }).notNull(),
+    method: varchar("method", { length: 10 }).notNull(),
+    path: varchar("path", { length: 255 }).notNull(),
+    statusCode: smallint("status_code").notNull(),
+    responseTime: integer("response_time").notNull(),
+    responseSize: integer("response_size"),
+    apiKeyPrefix: varchar("api_key_prefix", { length: 8 }),
+    userAgent: varchar("user_agent", { length: 500 }),
+    clientIp: varchar("client_ip", { length: 45 }),
+    routeMatched: varchar("route_matched", { length: 100 }),
+  },
+  (table) => [
+    index("request_logs_timestamp_idx").on(table.timestamp),
+    index("request_logs_api_key_prefix_idx").on(table.apiKeyPrefix),
+    index("request_logs_path_timestamp_idx").on(table.path, table.timestamp),
+    index("request_logs_request_id_idx").on(table.requestId),
+    index("request_logs_status_code_idx").on(table.statusCode),
+  ],
+);
+
+// ── Application Logs ────────────────────────────────────────────────────────
+
+export const applicationLogs = pgTable(
+  "application_logs",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    timestamp: timestamp("timestamp", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    requestId: varchar("request_id", { length: 36 }),
+    level: varchar("level", { length: 10 }).notNull(),
+    message: varchar("message", { length: 1000 }).notNull(),
+    source: varchar("source", { length: 100 }).notNull(),
+    attributes: jsonb("attributes"),
+    errorStack: text("error_stack"),
+  },
+  (table) => [
+    index("application_logs_timestamp_idx").on(table.timestamp),
+    index("application_logs_request_id_idx").on(table.requestId),
+    index("application_logs_level_idx").on(table.level),
+    index("application_logs_source_idx").on(table.source),
+    index("application_logs_attributes_idx").using("gin", table.attributes),
+  ],
 );
