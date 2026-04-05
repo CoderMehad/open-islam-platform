@@ -43,6 +43,13 @@
       "when": 1774721913007,
       "tag": "0005_hesitant_quasar",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775408748484,
+      "tag": "0006_cool_omega_flight",
+      "breakpoints": true
     }
   ]
 }

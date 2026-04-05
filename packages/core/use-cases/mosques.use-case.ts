@@ -2,6 +2,7 @@ import type { Mosque } from "../models/mosque.model.js";
 import type { PaginatedResult } from "../models/shared.model.js";
 import { MAX_PAGE_SIZE } from "../constants.js";
 import { ConflictError } from "../errors.js";
+import { logger } from "../adapters/logger.adapter.js";
 import {
   listMosques,
   getMosqueByIdOrSlug as dbGetByIdOrSlug,
@@ -61,7 +62,12 @@ export interface UpdateMosqueData {
 }
 
 export async function list(params: ListParams = {}): Promise<PaginatedResult<Mosque>> {
-  return listMosques(params);
+  const result = await listMosques(params);
+  logger.info("Mosques listed", {
+    source: "mosques",
+    attributes: { city: params.city ?? null, page: params.page ?? 1, total: result.total },
+  });
+  return result;
 }
 
 export async function getByIdOrSlug(

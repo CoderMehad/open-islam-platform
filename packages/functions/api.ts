@@ -18,7 +18,7 @@ import { prayerCalculationAdminRoutes } from "./routes/prayer-calculation-admin.
 import { apiKeyRoutes } from "./routes/api-keys.js";
 import { superAdminRoutes } from "./routes/super-admin.js";
 import { analyticsRoutes } from "./routes/analytics.js";
-import { requestAnalytics } from "./middleware/analytics.js";
+import { requestLogger } from "./middleware/request-logger.middleware.js";
 import { log } from "@qivam/core/adapters/logger";
 
 // Bridge SST Config.Secret values into process.env for core layer
@@ -66,7 +66,7 @@ app.onError((err, c) => {
 // ── Consumer routes (documented in OpenAPI spec) ─────────────────────────────
 
 const consumerApp = new OpenAPIHono<AppEnv>();
-consumerApp.use("*", requestAnalytics);
+consumerApp.use("*", requestLogger);
 
 // Developer endpoints (X-API-Key)
 consumerApp.route("/mosques", mosqueRoutes);
