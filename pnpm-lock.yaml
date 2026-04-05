@@ -72,6 +72,9 @@ importers:
       '@scalar/hono-api-reference':
         specifier: ^0.10.3
         version: 0.10.3(hono@4.12.7)
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.1(@aws-sdk/client-rds-data@3.1008.0(aws-crt@1.29.1))(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(kysely@0.25.0)(postgres@3.4.8)
       hono:
         specifier: 4.12.7
         version: 4.12.7

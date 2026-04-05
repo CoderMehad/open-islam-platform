@@ -9,6 +9,7 @@ import {
   querySchema,
 } from "@qivam/core/schemas/prayer-times";
 import { errorResponse, paginationMeta } from "@qivam/core/schemas/common";
+import { logger } from "@qivam/core/adapters/logger";
 
 export const prayerTimesRoutes = new OpenAPIHono<AppEnv>();
 
@@ -64,6 +65,7 @@ prayerTimesRoutes.openapi(getTodayRoute, async (c) => {
   const { id } = c.req.valid("param");
   const entry = await PrayerTimes.getToday(id);
   if (!entry) {
+    logger.warn("No prayer times for today", { source: "prayer-times", attributes: { mosqueId: id } });
     return c.json({ error: "No prayer times found for today" }, 404);
   }
   return c.json(entry, 200);

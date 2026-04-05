@@ -10,6 +10,7 @@ import {
   nearbyQuery,
 } from "@qivam/core/schemas/mosque";
 import { errorResponse, paginationMeta } from "@qivam/core/schemas/common";
+import { logger } from "@qivam/core/adapters/logger";
 
 export const mosqueRoutes = new OpenAPIHono<AppEnv>();
 
@@ -97,6 +98,7 @@ mosqueRoutes.openapi(getRoute, async (c) => {
   const { id } = c.req.valid("param");
   const mosque = await Mosque.getByIdOrSlug(id);
   if (!mosque) {
+    logger.warn("Mosque not found", { source: "mosques", attributes: { idOrSlug: id } });
     return c.json({ error: "Mosque not found" }, 404);
   }
   return c.json(mosque, 200);
