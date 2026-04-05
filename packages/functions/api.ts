@@ -19,7 +19,7 @@ import { apiKeyRoutes } from "./routes/api-keys.js";
 import { superAdminRoutes } from "./routes/super-admin.js";
 import { analyticsRoutes } from "./routes/analytics.js";
 import { requestLogger } from "./middleware/request-logger.middleware.js";
-import { log } from "@qivam/core/adapters/logger";
+import { logger } from "@qivam/core/adapters/logger";
 
 // Bridge SST Config.Secret values into process.env for core layer
 process.env.NEON_DATABASE_URL ??= (Config as Record<string, string>).NEON_DATABASE_URL;
@@ -58,8 +58,7 @@ app.onError((err, c) => {
   }
 
   const message = err instanceof Error ? err.message : "Unknown error";
-  const stack = err instanceof Error ? err.stack : undefined;
-  log("error", "Unhandled error", { error: message, stack, requestId: reqId });
+  logger.error("Unhandled error", { source: "error-handler", attributes: { error: message, requestId: reqId }, error: err instanceof Error ? err : undefined });
   return c.json({ error: "Internal server error", requestId: reqId }, 500);
 });
 

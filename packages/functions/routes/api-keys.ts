@@ -4,7 +4,7 @@ import type { AppEnv } from "../types.js";
 import { requestApiKey, apiKeyResponse, apiKeyStatus } from "@qivam/core/schemas/api-key";
 import { errorResponse } from "@qivam/core/schemas/common";
 import { sendApiKeyEmail } from "@qivam/core/adapters/ses";
-import { log } from "@qivam/core/adapters/logger";
+import { logger } from "@qivam/core/adapters/logger";
 
 export const apiKeyRoutes = new OpenAPIHono<AppEnv>();
 
@@ -34,10 +34,10 @@ apiKeyRoutes.openapi(requestRoute, async (c) => {
       prefix: result.prefix,
     });
   } catch (err) {
-    log("error", "Failed to send API key email", {
-      prefix: result.prefix,
-      email: data.contactEmail,
-      error: err instanceof Error ? err.message : "Unknown error",
+    logger.error("Failed to send API key email", {
+      source: "api-keys",
+      attributes: { prefix: result.prefix, email: data.contactEmail },
+      error: err instanceof Error ? err : undefined,
     });
   }
 
@@ -66,6 +66,7 @@ apiKeyRoutes.openapi(statusRoute, async (c) => {
   const { prefix } = c.req.valid("param");
   const key = await ApiKey.getByPrefix(prefix);
   if (!key) {
+    logger.warn("API key lookup failed — not found", { source: "api-keys", attributes: { prefix } });
     return c.json({ error: "API key not found" }, 404);
   }
   return c.json({

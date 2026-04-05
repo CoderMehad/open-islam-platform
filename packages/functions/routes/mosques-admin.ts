@@ -10,7 +10,7 @@ import {
 } from "@qivam/core/schemas/mosque";
 import { errorResponse } from "@qivam/core/schemas/common";
 import { sendMosqueSubmissionEmail } from "@qivam/core/adapters/ses";
-import { log } from "@qivam/core/adapters/logger";
+import { logger } from "@qivam/core/adapters/logger";
 
 export const mosqueAdminRoutes = new OpenAPIHono<AppEnv>();
 
@@ -48,9 +48,10 @@ mosqueAdminRoutes.openapi(createMosqueRoute, async (c) => {
         adminEmail: admin.id,
       });
     } catch (err) {
-      log("error", "Failed to send mosque submission email", {
-        mosqueId: mosque.id,
-        error: err instanceof Error ? err.message : "Unknown error",
+      logger.error("Failed to send mosque submission email", {
+        source: "mosques",
+        attributes: { mosqueId: mosque.id },
+        error: err instanceof Error ? err : undefined,
       });
     }
   }
@@ -83,6 +84,7 @@ mosqueAdminRoutes.openapi(updateMosqueRoute, async (c) => {
   const data = c.req.valid("json");
   const mosque = await Mosque.update(id, data);
   if (!mosque) {
+    logger.warn("Mosque update failed — not found", { source: "mosques", attributes: { mosqueId: id } });
     return c.json({ error: "Mosque not found" }, 404);
   }
   return c.json(mosque, 200);
@@ -115,6 +117,7 @@ mosqueAdminRoutes.openapi(deleteMosqueRoute, async (c) => {
   const { id } = c.req.valid("param");
   const deleted = await Mosque.remove(id);
   if (!deleted) {
+    logger.warn("Mosque delete failed — not found", { source: "mosques", attributes: { mosqueId: id } });
     return c.json({ error: "Mosque not found" }, 404);
   }
   return c.json({ success: true }, 200);

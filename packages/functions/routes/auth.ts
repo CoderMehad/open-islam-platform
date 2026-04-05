@@ -7,6 +7,7 @@ import {
   tokenResponse,
 } from "@qivam/core/schemas/auth";
 import { errorResponse } from "@qivam/core/schemas/common";
+import { logger } from "@qivam/core/adapters/logger";
 
 export const authRoutes = new OpenAPIHono<AppEnv>();
 
@@ -60,6 +61,7 @@ authRoutes.openapi(loginRoute, async (c) => {
   const { email, password } = c.req.valid("json");
   const result = await login(email, password);
   if (!result) {
+    logger.warn("Login rejected", { source: "auth", attributes: { email } });
     return c.json({ error: "Invalid email or password" }, 401);
   }
   return c.json(result, 200);

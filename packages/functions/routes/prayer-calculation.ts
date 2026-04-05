@@ -27,6 +27,7 @@ import {
   qiblaResponse,
 } from "@qivam/core/schemas/prayer-calculation";
 import { inferTimezone } from "@qivam/core/shared/helpers";
+import { logger } from "@qivam/core/adapters/logger";
 
 export const prayerCalculationRoutes = new OpenAPIHono<AppEnv>();
 export const standalonePrayerCalculationRoutes = new OpenAPIHono<AppEnv>();
@@ -99,6 +100,7 @@ prayerCalculationRoutes.openapi(mosqueCalculateRoute, async (c) => {
 
   const mosque = await Mosque.getByIdOrSlug(id);
   if (!mosque) {
+    logger.warn("Prayer calculation failed — mosque not found", { source: "prayer-calculation", attributes: { mosqueId: id } });
     return c.json({ error: "Mosque not found" }, 404);
   }
 
@@ -108,6 +110,8 @@ prayerCalculationRoutes.openapi(mosqueCalculateRoute, async (c) => {
 
   const times = calculatePrayerTimes(date, coords, config, mosque.timezone);
   const method = resolveMethod(config.method as CalculationConfig["method"]);
+
+  logger.info("Prayer times calculated", { source: "prayer-calculation", attributes: { mosqueId: id, date: query.date, method: method.name, timezone: mosque.timezone } });
 
   return c.json({
     date: query.date,
@@ -149,10 +153,12 @@ prayerCalculationRoutes.openapi(qiblaRoute, async (c) => {
 
   const mosque = await Mosque.getByIdOrSlug(id);
   if (!mosque) {
+    logger.warn("Qibla calculation failed — mosque not found", { source: "prayer-calculation", attributes: { mosqueId: id } });
     return c.json({ error: "Mosque not found" }, 404);
   }
 
   const result = calculateQibla({ latitude: mosque.lat, longitude: mosque.lng });
+  logger.info("Qibla calculated", { source: "prayer-calculation", attributes: { mosqueId: id } });
 
   return c.json({
     ...result,
@@ -212,6 +218,7 @@ const standaloneCalculateRoute = createRoute({
 
 standalonePrayerCalculationRoutes.openapi(standaloneCalculateRoute, async (c) => {
   const query = c.req.valid("query");
+  logger.info("Standalone prayer calculation", { source: "prayer-calculation", attributes: { lat: query.latitude, lng: query.longitude, method: query.method ?? "mwl", days: query.days } });
 
   const resolvedMethod = query.method ?? "mwl";
   const resolvedTimezone = query.timezone ?? inferTimezone(query.latitude, query.longitude);
@@ -275,5 +282,6 @@ const standaloneQiblaRoute = createRoute({
 standalonePrayerCalculationRoutes.openapi(standaloneQiblaRoute, (c) => {
   const { latitude, longitude } = c.req.valid("query");
   const result = calculateQibla({ latitude, longitude });
+  logger.info("Standalone qibla calculated", { source: "prayer-calculation", attributes: { latitude, longitude } });
   return c.json({ ...result, coordinates: { latitude, longitude } }, 200);
 });
