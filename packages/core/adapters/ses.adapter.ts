@@ -1,4 +1,5 @@
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
+import { logger } from "./logger.adapter.js";
 
 const ses = new SESv2Client({ region: "eu-west-1" });
 
@@ -41,7 +42,13 @@ export async function sendApiKeyEmail({ to, name, apiKey, prefix }: SendApiKeyEm
     },
   });
 
-  await ses.send(command);
+  try {
+    await ses.send(command);
+    logger.info("API key email sent", { source: "ses", attributes: { to, prefix } });
+  } catch (err) {
+    logger.error("Failed to send API key email", { source: "ses", attributes: { to, prefix }, error: err instanceof Error ? err : undefined });
+    throw err;
+  }
 }
 
 interface SendMosqueSubmissionEmailParams {
@@ -86,7 +93,13 @@ export async function sendMosqueSubmissionEmail({
     },
   });
 
-  await ses.send(command);
+  try {
+    await ses.send(command);
+    logger.info("Mosque submission email sent", { source: "ses", attributes: { superAdminEmail, mosqueId } });
+  } catch (err) {
+    logger.error("Failed to send mosque submission email", { source: "ses", attributes: { superAdminEmail, mosqueId }, error: err instanceof Error ? err : undefined });
+    throw err;
+  }
 }
 
 interface SendMosqueStatusEmailParams {
@@ -123,7 +136,13 @@ export async function sendMosqueApprovedEmail({
     },
   });
 
-  await ses.send(command);
+  try {
+    await ses.send(command);
+    logger.info("Mosque approved email sent", { source: "ses", attributes: { to, mosqueName } });
+  } catch (err) {
+    logger.error("Failed to send mosque approved email", { source: "ses", attributes: { to, mosqueName }, error: err instanceof Error ? err : undefined });
+    throw err;
+  }
 }
 
 export async function sendMosqueRejectedEmail({
@@ -154,5 +173,11 @@ export async function sendMosqueRejectedEmail({
     },
   });
 
-  await ses.send(command);
+  try {
+    await ses.send(command);
+    logger.info("Mosque rejected email sent", { source: "ses", attributes: { to, mosqueName } });
+  } catch (err) {
+    logger.error("Failed to send mosque rejected email", { source: "ses", attributes: { to, mosqueName }, error: err instanceof Error ? err : undefined });
+    throw err;
+  }
 }

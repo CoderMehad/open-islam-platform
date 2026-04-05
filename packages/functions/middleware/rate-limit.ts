@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import { logger } from "@qivam/core/adapters/logger";
 import type { AppEnv } from "../types.js";
 
 // In-memory sliding window per API key (per warm Lambda instance)
@@ -28,6 +29,7 @@ export const rateLimiter = createMiddleware<AppEnv>(async (c, next) => {
   const recent = timestamps.filter((t) => t > cutoff);
 
   if (recent.length >= limit) {
+    logger.warn("Rate limit exceeded", { source: "rate-limit", attributes: { apiKeyId: apiKey.id, limit, current: recent.length } });
     c.header("Retry-After", "60");
     return c.json({ error: "Rate limit exceeded" }, 429);
   }

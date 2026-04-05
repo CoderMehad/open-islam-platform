@@ -90,11 +90,13 @@ export async function create(
 ): Promise<Mosque> {
   const admin = await getAdminById(adminId);
   if (admin?.mosqueId) {
+    logger.warn("Mosque creation denied — admin already manages a mosque", { source: "mosques", attributes: { adminId, existingMosqueId: admin.mosqueId } });
     throw new ConflictError("You already manage a mosque");
   }
 
   const mosque = await insertMosque(data);
   await linkAdminToMosque(adminId, mosque.id);
+  logger.info("Mosque created", { source: "mosques", attributes: { mosqueId: mosque.id, name: data.name, city: data.city, adminId } });
   return mosque;
 }
 
@@ -102,9 +104,17 @@ export async function update(
   id: string,
   data: UpdateMosqueData,
 ): Promise<Mosque | undefined> {
-  return dbUpdateMosque(id, data);
+  const result = await dbUpdateMosque(id, data);
+  if (result) {
+    logger.info("Mosque updated", { source: "mosques", attributes: { mosqueId: id, fields: Object.keys(data) } });
+  }
+  return result;
 }
 
 export async function remove(id: string): Promise<boolean> {
-  return deleteMosque(id);
+  const deleted = await deleteMosque(id);
+  if (deleted) {
+    logger.info("Mosque deleted", { source: "mosques", attributes: { mosqueId: id } });
+  }
+  return deleted;
 }

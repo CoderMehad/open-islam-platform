@@ -6,6 +6,7 @@ import {
   upsertPrayerTime,
   bulkUpsertPrayerTimes,
 } from "../repositories/prayer-times.repository.js";
+import { logger } from "../adapters/logger.adapter.js";
 
 export interface GetOptions {
   date?: string;
@@ -42,12 +43,16 @@ export async function upsert(
   mosqueId: string,
   data: UpsertData,
 ): Promise<PrayerTimeEntry> {
-  return upsertPrayerTime(mosqueId, data);
+  const result = await upsertPrayerTime(mosqueId, data);
+  logger.info("Prayer time upserted", { source: "prayer-times", attributes: { mosqueId, date: data.date } });
+  return result;
 }
 
 export async function bulkUpsert(
   mosqueId: string,
   entries: UpsertData[],
 ): Promise<PrayerTimeEntry[]> {
-  return bulkUpsertPrayerTimes(mosqueId, entries);
+  const result = await bulkUpsertPrayerTimes(mosqueId, entries);
+  logger.info("Prayer times bulk upserted", { source: "prayer-times", attributes: { mosqueId, count: entries.length } });
+  return result;
 }
