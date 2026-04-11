@@ -11,6 +11,18 @@ const facilityEnum = z.enum([
   "community_hall",
 ]);
 
+const claimStatusEnum = z.enum(["unclaimed", "claimed"]);
+const verificationStatusEnum = z.enum(["pending", "verified", "rejected"]);
+
+const csvList = z.preprocess((value) => {
+  if (typeof value !== "string") return value;
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts : undefined;
+}, z.array(z.string()).optional());
+
 export const createMosque = z.object({
   name: z.string().min(1).max(200),
   address: z.string().min(1).max(500),
@@ -43,6 +55,12 @@ export const mosqueResponse = z.object({
   lng: z.number(),
   timezone: z.string(),
   facilities: z.array(facilityEnum),
+  source: z.string(),
+  sourceId: z.string().nullable(),
+  claimStatus: claimStatusEnum,
+  claimedBy: z.string().nullable(),
+  claimedAt: z.string().nullable(),
+  verificationStatus: verificationStatusEnum,
   logoUrl: z.string().nullable(),
   coverUrl: z.string().nullable(),
   createdAt: z.string(),
@@ -52,7 +70,12 @@ export const mosqueResponse = z.object({
 export const listQuery = z.object({
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(20).optional(),
+  q: z.string().min(1).optional(),
   city: z.string().optional(),
+  country: z.string().optional(),
+  facilities: csvList.pipe(z.array(facilityEnum).optional()),
+  source: z.string().optional(),
+  claim_status: claimStatusEnum.optional(),
 });
 
 export const nearbyQuery = z.object({

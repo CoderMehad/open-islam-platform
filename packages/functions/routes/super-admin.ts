@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import type { AppEnv } from "../types.js";
 import {
   listAllApiKeys,
@@ -6,9 +8,12 @@ import {
   updateApiKeyAnalyticsEnabled,
 } from "@qivam/core/repository/drizzle";
 import {
-  updateMosqueVerificationStatus,
-  getMosqueWithAdminEmail,
-} from "@qivam/core/repositories/mosque";
+  getProvenance as getMosqueProvenance,
+  getWithAdminEmail,
+  update as updateMosque,
+  updateClaimStatus,
+  updateVerificationStatus,
+} from "@qivam/core/mosque";
 import {
   sendMosqueApprovedEmail,
   sendMosqueRejectedEmail,
@@ -17,6 +22,39 @@ import { superAdminAuth } from "../middleware/super-admin-auth.js";
 import { logger } from "@qivam/core/adapters/logger";
 
 export const superAdminRoutes = new Hono<AppEnv>();
+
+const updateMosqueBody = z.object({
+  name: z.string().min(1).max(200).optional(),
+  address: z.string().min(1).max(500).optional(),
+  city: z.string().min(1).max(100).optional(),
+  postcode: z.string().min(1).max(20).optional(),
+  country: z.string().length(2).optional(),
+  phone: z.string().max(50).nullable().optional(),
+  email: z.string().email().nullable().optional(),
+  website: z.string().url().nullable().optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+  timezone: z.string().min(1).max(64).optional(),
+  facilities: z
+    .array(
+      z.enum([
+        "parking",
+        "wheelchair_access",
+        "womens_area",
+        "wudu_area",
+        "funeral_services",
+        "islamic_school",
+        "library",
+        "community_hall",
+      ]),
+    )
+    .optional(),
+  source: z.string().min(1).max(100).optional(),
+  sourceId: z.string().max(255).nullable().optional(),
+  claimStatus: z.enum(["unclaimed", "claimed"]).optional(),
+  claimedBy: z.string().uuid().nullable().optional(),
+  verificationStatus: z.enum(["pending", "verified", "rejected"]).optional(),
+});
 
 superAdminRoutes.use("*", superAdminAuth);
 
@@ -59,12 +97,46 @@ superAdminRoutes.patch("/api-keys/:id/analytics-opt-out", async (c) => {
 
 // ── Mosques ──────────────────────────────────────────────────────────────────
 
+superAdminRoutes.get("/mosques/:id/provenance", async (c) => {
+  const { id } = c.req.param();
+  const result = await getMosqueProvenance(id);
+  if (!result) return c.json({ error: "Mosque not found" }, 404);
+  return c.json(result, 200);
+});
+
+superAdminRoutes.patch(
+  "/mosques/:id",
+  zValidator("json", updateMosqueBody),
+  async (c) => {
+    const { id } = c.req.param();
+    const body = c.req.valid("json");
+    let mosque = await updateMosque(id, body);
+    if (!mosque) return c.json({ error: "Mosque not found" }, 404);
+
+    if (body.claimStatus) {
+      mosque = await updateClaimStatus(
+        id,
+        body.claimStatus,
+        body.claimedBy ?? null,
+        "Updated by super-admin",
+      );
+      if (!mosque) return c.json({ error: "Mosque not found" }, 404);
+    }
+
+    logger.info("Mosque updated by super-admin", {
+      source: "super-admin",
+      attributes: { mosqueId: id, fields: Object.keys(body) },
+    });
+    return c.json(mosque, 200);
+  },
+);
+
 superAdminRoutes.patch("/mosques/:id/approve", async (c) => {
   const { id } = c.req.param();
-  const result = await getMosqueWithAdminEmail(id);
+  const result = await getWithAdminEmail(id);
   if (!result) return c.json({ error: "Mosque not found" }, 404);
 
-  const mosque = await updateMosqueVerificationStatus(id, "verified");
+  const mosque = await updateVerificationStatus(id, "verified");
   if (!mosque) return c.json({ error: "Mosque not found" }, 404);
 
   logger.info("Mosque approved", { source: "super-admin", attributes: { mosqueId: id, mosqueName: result.mosque.name } });
@@ -84,10 +156,10 @@ superAdminRoutes.patch("/mosques/:id/approve", async (c) => {
 
 superAdminRoutes.patch("/mosques/:id/reject", async (c) => {
   const { id } = c.req.param();
-  const result = await getMosqueWithAdminEmail(id);
+  const result = await getWithAdminEmail(id);
   if (!result) return c.json({ error: "Mosque not found" }, 404);
 
-  const mosque = await updateMosqueVerificationStatus(id, "rejected");
+  const mosque = await updateVerificationStatus(id, "rejected");
   if (!mosque) return c.json({ error: "Mosque not found" }, 404);
 
   logger.info("Mosque rejected", { source: "super-admin", attributes: { mosqueId: id, mosqueName: result.mosque.name } });
@@ -104,4 +176,3 @@ superAdminRoutes.patch("/mosques/:id/reject", async (c) => {
 
   return c.json({ ok: true, mosque }, 200);
 });
-

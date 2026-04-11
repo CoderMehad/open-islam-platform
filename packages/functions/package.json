@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1010.0",
     "@hono/zod-openapi": "0.16.0",
     "@hono/zod-validator": "0.2.2",
     "@qivam/core": "workspace:*",

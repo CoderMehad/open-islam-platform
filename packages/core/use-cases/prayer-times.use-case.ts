@@ -18,12 +18,22 @@ export interface GetOptions {
 
 export interface UpsertData {
   date: string;
-  fajr: string;
-  dhuhr: string;
-  asr: string;
-  maghrib: string;
-  isha: string;
-  jummah?: string | null;
+  adhan: {
+    fajr: string;
+    dhuhr: string;
+    asr: string;
+    maghrib: string;
+    isha: string;
+    jummah?: string | null;
+  };
+  iqamah?: {
+    fajr?: string | null;
+    dhuhr?: string | null;
+    asr?: string | null;
+    maghrib?: string | null;
+    isha?: string | null;
+    jummah?: string | null;
+  };
 }
 
 export async function getForMosque(

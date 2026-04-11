@@ -11,10 +11,7 @@ import { healthRoutes } from "./routes/health.js";
 import { authRoutes } from "./routes/auth.js";
 import { mosqueRoutes } from "./routes/mosques.js";
 import { mosqueAdminRoutes } from "./routes/mosques-admin.js";
-import { prayerTimesRoutes } from "./routes/prayer-times.js";
-import { prayerTimesAdminRoutes } from "./routes/prayer-times-admin.js";
-import { prayerCalculationRoutes, standalonePrayerCalculationRoutes } from "./routes/prayer-calculation.js";
-import { prayerCalculationAdminRoutes } from "./routes/prayer-calculation-admin.js";
+import { standalonePrayerCalculationRoutes } from "./routes/prayer-calculation.js";
 import { apiKeyRoutes } from "./routes/api-keys.js";
 import { superAdminRoutes } from "./routes/super-admin.js";
 import { analyticsRoutes } from "./routes/analytics.js";
@@ -69,8 +66,6 @@ consumerApp.use("*", requestLogger);
 
 // Developer endpoints (X-API-Key)
 consumerApp.route("/mosques", mosqueRoutes);
-consumerApp.route("/mosques", prayerTimesRoutes);
-consumerApp.route("/mosques", prayerCalculationRoutes);
 consumerApp.route("/prayer-times", standalonePrayerCalculationRoutes);
 consumerApp.route("/api-keys", apiKeyRoutes);
 consumerApp.route("/analytics", analyticsRoutes);
@@ -78,8 +73,6 @@ consumerApp.route("/analytics", analyticsRoutes);
 // Mosque admin endpoints (Bearer JWT)
 consumerApp.route("/auth", authRoutes);
 consumerApp.route("/mosques", mosqueAdminRoutes);
-consumerApp.route("/mosques", prayerTimesAdminRoutes);
-consumerApp.route("/mosques", prayerCalculationAdminRoutes);
 
 consumerApp.openAPIRegistry.registerComponent("securitySchemes", "ApiKeyAuth", {
   type: "apiKey",
@@ -99,7 +92,7 @@ consumerApp.doc("/docs/openapi.json", {
   openapi: "3.1.0",
   info: {
     title: "Qivam API",
-    description: "Open infrastructure for Muslim developers — mosque directory, prayer times, and Islamic content.\n\n**Authentication:**\n- Developer endpoints: `X-API-Key` header\n- Mosque admin endpoints: `Authorization: Bearer <token>` (JWT from `/auth/login`)",
+    description: "Open infrastructure for Muslim developers — mosque discovery and standalone location-based prayer utilities.\n\n**Authentication:**\n- Developer endpoints: `X-API-Key` header\n- Mosque admin endpoints: `Authorization: Bearer <token>` (JWT from `/auth/login`)",
     version: "1.0.0",
   },
   servers: [{ url: "/v1" }],
