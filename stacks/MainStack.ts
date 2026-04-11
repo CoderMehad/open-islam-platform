@@ -1,4 +1,4 @@
-import { Api, Config, Cron, StackContext } from "sst/constructs";
+import { Api, Config, Cron, StackContext, Table } from "sst/constructs";
 import * as ses from "aws-cdk-lib/aws-ses";
 
 export function MainStack({ stack }: StackContext) {
@@ -6,6 +6,17 @@ export function MainStack({ stack }: StackContext) {
   const JWT_SECRET = new Config.Secret(stack, "JWT_SECRET");
   const SUPER_ADMIN_KEY = new Config.Secret(stack, "SUPER_ADMIN_KEY");
   const SUPER_ADMIN_EMAIL = new Config.Secret(stack, "SUPER_ADMIN_EMAIL");
+  const rateLimitTable = new Table(stack, "RateLimitState", {
+    fields: {
+      apiKeyId: "string",
+      windowBucket: "string",
+    },
+    primaryIndex: {
+      partitionKey: "apiKeyId",
+      sortKey: "windowBucket",
+    },
+    timeToLiveAttribute: "expiresAt",
+  });
 
   // SES domain identity — only on production (domain identity is a regional singleton;
   // creating it on every stage would conflict with the existing production resource)
@@ -21,8 +32,15 @@ export function MainStack({ stack }: StackContext) {
   const api = new Api(stack, "Api", {
     defaults: {
       function: {
-        bind: [NEON_DATABASE_URL, JWT_SECRET, SUPER_ADMIN_KEY, SUPER_ADMIN_EMAIL],
+        bind: [
+          NEON_DATABASE_URL,
+          JWT_SECRET,
+          SUPER_ADMIN_KEY,
+          SUPER_ADMIN_EMAIL,
+          rateLimitTable,
+        ],
         environment: {
+          RATE_LIMIT_TABLE_NAME: rateLimitTable.tableName,
           SST_STAGE: stack.stage,
         },
         logRetention: "one_month",

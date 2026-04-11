@@ -5,12 +5,24 @@ const timePattern = z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format");
 
 export const createPrayerTimes = z.object({
   date: datePattern,
-  fajr: timePattern,
-  dhuhr: timePattern,
-  asr: timePattern,
-  maghrib: timePattern,
-  isha: timePattern,
-  jummah: timePattern.nullable().optional(),
+  adhan: z.object({
+    fajr: timePattern,
+    dhuhr: timePattern,
+    asr: timePattern,
+    maghrib: timePattern,
+    isha: timePattern,
+    jummah: timePattern.nullable().optional(),
+  }),
+  iqamah: z
+    .object({
+      fajr: timePattern.nullable().optional(),
+      dhuhr: timePattern.nullable().optional(),
+      asr: timePattern.nullable().optional(),
+      maghrib: timePattern.nullable().optional(),
+      isha: timePattern.nullable().optional(),
+      jummah: timePattern.nullable().optional(),
+    })
+    .optional(),
 });
 
 export const bulkSchema = z.object({
@@ -21,12 +33,22 @@ export const prayerTimesResponse = z.object({
   id: z.string().uuid(),
   mosqueId: z.string().uuid(),
   date: z.string(),
-  fajr: z.string(),
-  dhuhr: z.string(),
-  asr: z.string(),
-  maghrib: z.string(),
-  isha: z.string(),
-  jummah: z.string().nullable(),
+  adhan: z.object({
+    fajr: z.string(),
+    dhuhr: z.string(),
+    asr: z.string(),
+    maghrib: z.string(),
+    isha: z.string(),
+    jummah: z.string().nullable(),
+  }),
+  iqamah: z.object({
+    fajr: z.string(),
+    dhuhr: z.string(),
+    asr: z.string(),
+    maghrib: z.string(),
+    isha: z.string(),
+    jummah: z.string().nullable(),
+  }),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

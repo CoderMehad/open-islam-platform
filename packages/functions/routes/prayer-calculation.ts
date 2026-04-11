@@ -1,8 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import * as Mosque from "@qivam/core/mosque";
 import {
   calculatePrayerTimes,
-  calculateForRange,
   calculateQibla,
   resolveMethod,
   CALCULATION_METHODS,
@@ -16,9 +14,7 @@ import type { AppEnv } from "../types.js";
 import { apiKeyAuth } from "../middleware/api-key.js";
 import { rateLimiter } from "../middleware/rate-limit.js";
 import { publicCache } from "../middleware/cache.js";
-import { errorResponse } from "@qivam/core/schemas/common";
 import {
-  mosqueCalculateQuery,
   standaloneCalculateQuery,
   standaloneQiblaQuery,
   calculatedTimesResponse,
@@ -29,7 +25,6 @@ import {
 import { inferTimezone } from "@qivam/core/shared/helpers";
 import { logger } from "@qivam/core/adapters/logger";
 
-export const prayerCalculationRoutes = new OpenAPIHono<AppEnv>();
 export const standalonePrayerCalculationRoutes = new OpenAPIHono<AppEnv>();
 
 // ---------------------------------------------------------------------------
@@ -69,102 +64,6 @@ function parseDate(dateStr: string): Date {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(y, m - 1, d);
 }
-
-// ---------------------------------------------------------------------------
-// GET /mosques/{id}/prayer-times/calculate
-// ---------------------------------------------------------------------------
-
-const mosqueCalculateRoute = createRoute({
-  method: "get",
-  path: "/{id}/prayer-times/calculate",
-  middleware: [apiKeyAuth, rateLimiter, publicCache],
-  request: {
-    params: z.object({ id: z.string() }),
-    query: mosqueCalculateQuery,
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: calculatedTimesResponse } },
-      description: "Calculated prayer times for the mosque",
-    },
-    404: {
-      content: { "application/json": { schema: errorResponse } },
-      description: "Mosque not found",
-    },
-  },
-});
-
-prayerCalculationRoutes.openapi(mosqueCalculateRoute, async (c) => {
-  const { id } = c.req.valid("param");
-  const query = c.req.valid("query");
-
-  const mosque = await Mosque.getByIdOrSlug(id);
-  if (!mosque) {
-    logger.warn("Prayer calculation failed — mosque not found", { source: "prayer-calculation", attributes: { mosqueId: id } });
-    return c.json({ error: "Mosque not found" }, 404);
-  }
-
-  const config = buildConfig(query);
-  const coords: Coordinates = { latitude: mosque.lat, longitude: mosque.lng };
-  const date = parseDate(query.date);
-
-  const times = calculatePrayerTimes(date, coords, config, mosque.timezone);
-  const method = resolveMethod(config.method as CalculationConfig["method"]);
-
-  logger.info("Prayer times calculated", { source: "prayer-calculation", attributes: { mosqueId: id, date: query.date, method: method.name, timezone: mosque.timezone } });
-
-  return c.json({
-    date: query.date,
-    prayers: times,
-    meta: {
-      method: method.name,
-      madhab: query.madhab ?? "standard",
-      timezone: mosque.timezone,
-      coordinates: { latitude: mosque.lat, longitude: mosque.lng },
-    },
-  }, 200);
-});
-
-// ---------------------------------------------------------------------------
-// GET /mosques/{id}/qibla
-// ---------------------------------------------------------------------------
-
-const qiblaRoute = createRoute({
-  method: "get",
-  path: "/{id}/qibla",
-  middleware: [apiKeyAuth, rateLimiter, publicCache],
-  request: {
-    params: z.object({ id: z.string() }),
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: qiblaResponse } },
-      description: "Qibla direction from mosque",
-    },
-    404: {
-      content: { "application/json": { schema: errorResponse } },
-      description: "Mosque not found",
-    },
-  },
-});
-
-prayerCalculationRoutes.openapi(qiblaRoute, async (c) => {
-  const { id } = c.req.valid("param");
-
-  const mosque = await Mosque.getByIdOrSlug(id);
-  if (!mosque) {
-    logger.warn("Qibla calculation failed — mosque not found", { source: "prayer-calculation", attributes: { mosqueId: id } });
-    return c.json({ error: "Mosque not found" }, 404);
-  }
-
-  const result = calculateQibla({ latitude: mosque.lat, longitude: mosque.lng });
-  logger.info("Qibla calculated", { source: "prayer-calculation", attributes: { mosqueId: id } });
-
-  return c.json({
-    ...result,
-    coordinates: { latitude: mosque.lat, longitude: mosque.lng },
-  }, 200);
-});
 
 // ---------------------------------------------------------------------------
 // GET /v1/prayer-times/methods

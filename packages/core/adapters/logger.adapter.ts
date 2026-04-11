@@ -110,3 +110,24 @@ export async function flushLogBuffer(buffer: LogRow[]): Promise<void> {
     // Silently swallow — no stdout fallback per spec
   }
 }
+
+export async function writeApplicationLog(
+  level: LogLevel,
+  message: string,
+  entry: LogEntry,
+): Promise<void> {
+  try {
+    const db = getDb();
+    await db.insert(applicationLogs).values({
+      timestamp: new Date(),
+      requestId: null,
+      level,
+      message,
+      source: entry.source,
+      attributes: entry.attributes ?? null,
+      errorStack: entry.error?.stack ?? null,
+    });
+  } catch {
+    // Silently swallow — no stdout fallback per spec
+  }
+}

@@ -39,7 +39,16 @@ const listRoute = createRoute({
 
 mosqueRoutes.openapi(listRoute, async (c) => {
   const query = c.req.valid("query");
-  const result = await Mosque.list(query);
+  const result = await Mosque.list({
+    page: query.page,
+    limit: query.limit,
+    q: query.q,
+    city: query.city,
+    country: query.country,
+    facilities: query.facilities,
+    source: query.source,
+    claimStatus: query.claim_status,
+  });
   return c.json(result, 200);
 });
 

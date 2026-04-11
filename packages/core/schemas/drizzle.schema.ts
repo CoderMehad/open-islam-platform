@@ -35,6 +35,11 @@ export const mosques = pgTable(
     lng: doublePrecision("lng").notNull(),
     timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
     facilities: text("facilities").notNull().default("[]"),
+    source: varchar("source", { length: 100 }).notNull().default("manual"),
+    sourceId: varchar("source_id", { length: 255 }),
+    claimStatus: text("claim_status").notNull().default("unclaimed"),
+    claimedBy: uuid("claimed_by"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
     verificationStatus: text("verification_status").notNull().default("pending"),
     logoUrl: text("logo_url"),
     coverUrl: text("cover_url"),
@@ -47,6 +52,8 @@ export const mosques = pgTable(
   },
   (table) => [
     index("mosques_city_idx").on(table.city),
+    index("mosques_source_idx").on(table.source),
+    index("mosques_claim_status_idx").on(table.claimStatus),
     index("mosques_created_at_id_idx").on(table.createdAt, table.id),
   ],
 );
@@ -76,12 +83,18 @@ export const prayerTimes = pgTable(
       .notNull()
       .references(() => mosques.id, { onDelete: "cascade" }),
     date: date("date").notNull(),
-    fajr: varchar("fajr", { length: 10 }).notNull(),
-    dhuhr: varchar("dhuhr", { length: 10 }).notNull(),
-    asr: varchar("asr", { length: 10 }).notNull(),
-    maghrib: varchar("maghrib", { length: 10 }).notNull(),
-    isha: varchar("isha", { length: 10 }).notNull(),
-    jummah: varchar("jummah", { length: 10 }),
+    fajrAdhan: varchar("fajr_adhan", { length: 10 }).notNull(),
+    fajrIqamah: varchar("fajr_iqamah", { length: 10 }),
+    dhuhrAdhan: varchar("dhuhr_adhan", { length: 10 }).notNull(),
+    dhuhrIqamah: varchar("dhuhr_iqamah", { length: 10 }),
+    asrAdhan: varchar("asr_adhan", { length: 10 }).notNull(),
+    asrIqamah: varchar("asr_iqamah", { length: 10 }),
+    maghribAdhan: varchar("maghrib_adhan", { length: 10 }).notNull(),
+    maghribIqamah: varchar("maghrib_iqamah", { length: 10 }),
+    ishaAdhan: varchar("isha_adhan", { length: 10 }).notNull(),
+    ishaIqamah: varchar("isha_iqamah", { length: 10 }),
+    jummahAdhan: varchar("jummah_adhan", { length: 10 }),
+    jummahIqamah: varchar("jummah_iqamah", { length: 10 }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -91,6 +104,62 @@ export const prayerTimes = pgTable(
   },
   (table) => [
     uniqueIndex("prayer_times_mosque_date_idx").on(table.mosqueId, table.date),
+  ],
+);
+
+// ── Mosque Sources ───────────────────────────────────────────────────────────
+
+export const mosqueSources = pgTable(
+  "mosque_sources",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    mosqueId: uuid("mosque_id")
+      .notNull()
+      .references(() => mosques.id, { onDelete: "cascade" }),
+    source: varchar("source", { length: 100 }).notNull(),
+    sourceId: varchar("source_id", { length: 255 }).notNull(),
+    rawPayload: jsonb("raw_payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("mosque_sources_source_source_id_idx").on(
+      table.source,
+      table.sourceId,
+    ),
+    index("mosque_sources_mosque_id_idx").on(table.mosqueId),
+  ],
+);
+
+// ── Mosque Claims ────────────────────────────────────────────────────────────
+
+export const mosqueClaims = pgTable(
+  "mosque_claims",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    mosqueId: uuid("mosque_id")
+      .notNull()
+      .references(() => mosques.id, { onDelete: "cascade" }),
+    claimStatus: text("claim_status").notNull().default("unclaimed"),
+    claimedBy: uuid("claimed_by").references(() => admins.id, {
+      onDelete: "set null",
+    }),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("mosque_claims_mosque_id_idx").on(table.mosqueId),
+    index("mosque_claims_claim_status_idx").on(table.claimStatus),
   ],
 );
 

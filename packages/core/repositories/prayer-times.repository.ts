@@ -12,12 +12,22 @@ function mapPrayerTimeRow(row: typeof prayerTimes.$inferSelect): PrayerTimeEntry
     id: row.id,
     mosqueId: row.mosqueId,
     date: row.date,
-    fajr: row.fajr,
-    dhuhr: row.dhuhr,
-    asr: row.asr,
-    maghrib: row.maghrib,
-    isha: row.isha,
-    jummah: row.jummah ?? null,
+    adhan: {
+      fajr: row.fajrAdhan,
+      dhuhr: row.dhuhrAdhan,
+      asr: row.asrAdhan,
+      maghrib: row.maghribAdhan,
+      isha: row.ishaAdhan,
+      jummah: row.jummahAdhan ?? null,
+    },
+    iqamah: {
+      fajr: row.fajrIqamah ?? row.fajrAdhan,
+      dhuhr: row.dhuhrIqamah ?? row.dhuhrAdhan,
+      asr: row.asrIqamah ?? row.asrAdhan,
+      maghrib: row.maghribIqamah ?? row.maghribAdhan,
+      isha: row.ishaIqamah ?? row.ishaAdhan,
+      jummah: row.jummahIqamah ?? null,
+    },
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -117,12 +127,22 @@ export async function upsertPrayerTime(
   mosqueId: string,
   data: {
     date: string;
-    fajr: string;
-    dhuhr: string;
-    asr: string;
-    maghrib: string;
-    isha: string;
-    jummah?: string | null;
+    adhan: {
+      fajr: string;
+      dhuhr: string;
+      asr: string;
+      maghrib: string;
+      isha: string;
+      jummah?: string | null;
+    };
+    iqamah?: {
+      fajr?: string | null;
+      dhuhr?: string | null;
+      asr?: string | null;
+      maghrib?: string | null;
+      isha?: string | null;
+      jummah?: string | null;
+    };
   },
 ): Promise<PrayerTimeEntry> {
   const db = getDb();
@@ -133,24 +153,36 @@ export async function upsertPrayerTime(
     .values({
       mosqueId,
       date: data.date,
-      fajr: data.fajr,
-      dhuhr: data.dhuhr,
-      asr: data.asr,
-      maghrib: data.maghrib,
-      isha: data.isha,
-      jummah: data.jummah ?? null,
+      fajrAdhan: data.adhan.fajr,
+      fajrIqamah: data.iqamah?.fajr ?? null,
+      dhuhrAdhan: data.adhan.dhuhr,
+      dhuhrIqamah: data.iqamah?.dhuhr ?? null,
+      asrAdhan: data.adhan.asr,
+      asrIqamah: data.iqamah?.asr ?? null,
+      maghribAdhan: data.adhan.maghrib,
+      maghribIqamah: data.iqamah?.maghrib ?? null,
+      ishaAdhan: data.adhan.isha,
+      ishaIqamah: data.iqamah?.isha ?? null,
+      jummahAdhan: data.adhan.jummah ?? null,
+      jummahIqamah: data.iqamah?.jummah ?? null,
       createdAt: now,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: [prayerTimes.mosqueId, prayerTimes.date],
       set: {
-        fajr: data.fajr,
-        dhuhr: data.dhuhr,
-        asr: data.asr,
-        maghrib: data.maghrib,
-        isha: data.isha,
-        jummah: data.jummah ?? null,
+        fajrAdhan: data.adhan.fajr,
+        fajrIqamah: data.iqamah?.fajr ?? null,
+        dhuhrAdhan: data.adhan.dhuhr,
+        dhuhrIqamah: data.iqamah?.dhuhr ?? null,
+        asrAdhan: data.adhan.asr,
+        asrIqamah: data.iqamah?.asr ?? null,
+        maghribAdhan: data.adhan.maghrib,
+        maghribIqamah: data.iqamah?.maghrib ?? null,
+        ishaAdhan: data.adhan.isha,
+        ishaIqamah: data.iqamah?.isha ?? null,
+        jummahAdhan: data.adhan.jummah ?? null,
+        jummahIqamah: data.iqamah?.jummah ?? null,
         updatedAt: now,
       },
     })
@@ -163,29 +195,45 @@ export async function bulkUpsertPrayerTimes(
   mosqueId: string,
   entries: Array<{
     date: string;
-    fajr: string;
-    dhuhr: string;
-    asr: string;
-    maghrib: string;
-    isha: string;
-    jummah?: string | null;
+    adhan: {
+      fajr: string;
+      dhuhr: string;
+      asr: string;
+      maghrib: string;
+      isha: string;
+      jummah?: string | null;
+    };
+    iqamah?: {
+      fajr?: string | null;
+      dhuhr?: string | null;
+      asr?: string | null;
+      maghrib?: string | null;
+      isha?: string | null;
+      jummah?: string | null;
+    };
   }>,
 ): Promise<PrayerTimeEntry[]> {
   const db = getDb();
   const now = new Date();
 
-  const values = entries.map((data) => ({
-    mosqueId,
-    date: data.date,
-    fajr: data.fajr,
-    dhuhr: data.dhuhr,
-    asr: data.asr,
-    maghrib: data.maghrib,
-    isha: data.isha,
-    jummah: data.jummah ?? null,
-    createdAt: now,
-    updatedAt: now,
-  }));
+    const values = entries.map((data) => ({
+      mosqueId,
+      date: data.date,
+      fajrAdhan: data.adhan.fajr,
+      fajrIqamah: data.iqamah?.fajr ?? null,
+      dhuhrAdhan: data.adhan.dhuhr,
+      dhuhrIqamah: data.iqamah?.dhuhr ?? null,
+      asrAdhan: data.adhan.asr,
+      asrIqamah: data.iqamah?.asr ?? null,
+      maghribAdhan: data.adhan.maghrib,
+      maghribIqamah: data.iqamah?.maghrib ?? null,
+      ishaAdhan: data.adhan.isha,
+      ishaIqamah: data.iqamah?.isha ?? null,
+      jummahAdhan: data.adhan.jummah ?? null,
+      jummahIqamah: data.iqamah?.jummah ?? null,
+      createdAt: now,
+      updatedAt: now,
+    }));
 
   const rows = await db
     .insert(prayerTimes)
@@ -193,12 +241,18 @@ export async function bulkUpsertPrayerTimes(
     .onConflictDoUpdate({
       target: [prayerTimes.mosqueId, prayerTimes.date],
       set: {
-        fajr: sql`excluded.fajr`,
-        dhuhr: sql`excluded.dhuhr`,
-        asr: sql`excluded.asr`,
-        maghrib: sql`excluded.maghrib`,
-        isha: sql`excluded.isha`,
-        jummah: sql`excluded.jummah`,
+        fajrAdhan: sql`excluded.fajr_adhan`,
+        fajrIqamah: sql`excluded.fajr_iqamah`,
+        dhuhrAdhan: sql`excluded.dhuhr_adhan`,
+        dhuhrIqamah: sql`excluded.dhuhr_iqamah`,
+        asrAdhan: sql`excluded.asr_adhan`,
+        asrIqamah: sql`excluded.asr_iqamah`,
+        maghribAdhan: sql`excluded.maghrib_adhan`,
+        maghribIqamah: sql`excluded.maghrib_iqamah`,
+        ishaAdhan: sql`excluded.isha_adhan`,
+        ishaIqamah: sql`excluded.isha_iqamah`,
+        jummahAdhan: sql`excluded.jummah_adhan`,
+        jummahIqamah: sql`excluded.jummah_iqamah`,
         updatedAt: sql`excluded.updated_at`,
       },
     })
