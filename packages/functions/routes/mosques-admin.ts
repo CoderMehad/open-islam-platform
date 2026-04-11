@@ -90,35 +90,3 @@ mosqueAdminRoutes.openapi(updateMosqueRoute, async (c) => {
   return c.json(mosque, 200);
 });
 
-const deleteMosqueRoute = createRoute({
-  method: "delete",
-  path: "/{id}",
-  middleware: [jwtAuth, requireOwnership()],
-  request: {
-    params: z.object({ id: z.string().uuid() }),
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({ success: z.boolean() }),
-        },
-      },
-      description: "Mosque deleted",
-    },
-    404: {
-      content: { "application/json": { schema: errorResponse } },
-      description: "Mosque not found",
-    },
-  },
-});
-
-mosqueAdminRoutes.openapi(deleteMosqueRoute, async (c) => {
-  const { id } = c.req.valid("param");
-  const deleted = await Mosque.remove(id);
-  if (!deleted) {
-    logger.warn("Mosque delete failed — not found", { source: "mosques", attributes: { mosqueId: id } });
-    return c.json({ error: "Mosque not found" }, 404);
-  }
-  return c.json({ success: true }, 200);
-});
