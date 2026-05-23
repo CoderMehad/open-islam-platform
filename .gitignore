@@ -7,3 +7,6 @@ node_modules
 dist/
 .build/
 cdk.context.json
+
+.omc
+.claude

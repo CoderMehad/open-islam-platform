@@ -1,7 +1,7 @@
 import { eq, and, gte, lte, sql, asc, count } from "drizzle-orm";
 import { getDb } from "../adapters/neon.adapter.js";
-import { mosques, prayerTimes } from "../schemas/drizzle.schema.js";
-import type { PrayerTimeEntry } from "../models/prayer-times.model.js";
+import { mosques, prayerTimes, prayerSchedules } from "../schemas/drizzle.schema.js";
+import type { JummahSlot, PrayerSchedule, PrayerTimeEntry } from "../models/prayer-times.model.js";
 import type { PaginatedResult } from "../models/shared.model.js";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 
@@ -259,4 +259,91 @@ export async function bulkUpsertPrayerTimes(
     .returning();
 
   return rows.map(mapPrayerTimeRow);
+}
+
+// ── Prayer Schedule (standing times) ─────────────────────────────────────────
+
+function mapScheduleRow(row: typeof prayerSchedules.$inferSelect): PrayerSchedule {
+  return {
+    mosqueId:      row.mosqueId,
+    fajrAdhan:     row.fajrAdhan,
+    fajrIqamah:    row.fajrIqamah ?? null,
+    dhuhrAdhan:    row.dhuhrAdhan,
+    dhuhrIqamah:   row.dhuhrIqamah ?? null,
+    asrAdhan:      row.asrAdhan,
+    asrIqamah:     row.asrIqamah ?? null,
+    maghribAdhan:  row.maghribAdhan,
+    maghribIqamah: row.maghribIqamah ?? null,
+    ishaAdhan:     row.ishaAdhan,
+    ishaIqamah:    row.ishaIqamah ?? null,
+    jummahTimes:   row.jummahTimes as JummahSlot[],
+    createdAt:     row.createdAt.toISOString(),
+    updatedAt:     row.updatedAt.toISOString(),
+  };
+}
+
+export async function upsertPrayerSchedule(
+  mosqueId: string,
+  data: {
+    fajrAdhan: string;     fajrIqamah?: string | null;
+    dhuhrAdhan: string;    dhuhrIqamah?: string | null;
+    asrAdhan: string;      asrIqamah?: string | null;
+    maghribAdhan: string;  maghribIqamah?: string | null;
+    ishaAdhan: string;     ishaIqamah?: string | null;
+    jummahTimes?: JummahSlot[];
+  },
+): Promise<PrayerSchedule> {
+  const db = getDb();
+  const now = new Date();
+
+  const rows = await db
+    .insert(prayerSchedules)
+    .values({
+      mosqueId,
+      fajrAdhan:     data.fajrAdhan,
+      fajrIqamah:    data.fajrIqamah ?? null,
+      dhuhrAdhan:    data.dhuhrAdhan,
+      dhuhrIqamah:   data.dhuhrIqamah ?? null,
+      asrAdhan:      data.asrAdhan,
+      asrIqamah:     data.asrIqamah ?? null,
+      maghribAdhan:  data.maghribAdhan,
+      maghribIqamah: data.maghribIqamah ?? null,
+      ishaAdhan:     data.ishaAdhan,
+      ishaIqamah:    data.ishaIqamah ?? null,
+      jummahTimes:   sql`${JSON.stringify(data.jummahTimes ?? [])}::jsonb`,
+      createdAt:     now,
+      updatedAt:     now,
+    })
+    .onConflictDoUpdate({
+      target: prayerSchedules.mosqueId,
+      set: {
+        fajrAdhan:     data.fajrAdhan,
+        fajrIqamah:    data.fajrIqamah ?? null,
+        dhuhrAdhan:    data.dhuhrAdhan,
+        dhuhrIqamah:   data.dhuhrIqamah ?? null,
+        asrAdhan:      data.asrAdhan,
+        asrIqamah:     data.asrIqamah ?? null,
+        maghribAdhan:  data.maghribAdhan,
+        maghribIqamah: data.maghribIqamah ?? null,
+        ishaAdhan:     data.ishaAdhan,
+        ishaIqamah:    data.ishaIqamah ?? null,
+        jummahTimes:   sql`${JSON.stringify(data.jummahTimes ?? [])}::jsonb`,
+        updatedAt:     now,
+      },
+    })
+    .returning();
+
+  return mapScheduleRow(rows[0]);
+}
+
+export async function getPrayerSchedule(
+  mosqueId: string,
+): Promise<PrayerSchedule | undefined> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(prayerSchedules)
+    .where(eq(prayerSchedules.mosqueId, mosqueId))
+    .limit(1);
+  return rows[0] ? mapScheduleRow(rows[0]) : undefined;
 }

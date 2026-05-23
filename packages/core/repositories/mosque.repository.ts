@@ -1,6 +1,6 @@
 import { eq, and, or, sql, asc, count } from "drizzle-orm";
 import { getDb } from "../adapters/neon.adapter.js";
-import { mosqueClaims, mosqueSources, mosques } from "../schemas/drizzle.schema.js";
+import { admins, mosqueClaims, mosqueSources, mosques, prayerSchedules } from "../schemas/drizzle.schema.js";
 import type {
   Mosque,
   MosqueClaimRecord,
@@ -8,6 +8,7 @@ import type {
   MosqueFacility,
   MosqueSourceRecord,
   MosqueVerificationStatus,
+  PrayerSchedule,
 } from "../models/mosque.model.js";
 import type { PaginatedResult } from "../models/shared.model.js";
 import { slugify } from "../shared/helpers.js";
@@ -16,7 +17,10 @@ import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 
 // ── Row Mapper ────────────────────────────────────────────────────────────────
 
-function mapMosqueRow(row: typeof mosques.$inferSelect): Mosque {
+function mapMosqueRow(
+  row: typeof mosques.$inferSelect,
+  schedule?: typeof prayerSchedules.$inferSelect | null,
+): Mosque {
   return {
     id: row.id,
     slug: row.slug,
@@ -25,8 +29,9 @@ function mapMosqueRow(row: typeof mosques.$inferSelect): Mosque {
     city: row.city,
     postcode: row.postcode,
     country: row.country,
-    phone: row.phone ?? null,
-    email: row.email ?? null,
+    // Omit phone/email when null so they're absent from the JSON response
+    ...(row.phone  ? { phone:  row.phone  } : {}),
+    ...(row.email  ? { email:  row.email  } : {}),
     website: row.website ?? null,
     lat: row.lat,
     lng: row.lng,
@@ -38,10 +43,31 @@ function mapMosqueRow(row: typeof mosques.$inferSelect): Mosque {
     claimedBy: row.claimedBy ?? null,
     claimedAt: row.claimedAt?.toISOString() ?? null,
     verificationStatus: row.verificationStatus as MosqueVerificationStatus,
+    isPublished: row.isPublished,
     logoUrl: row.logoUrl ?? null,
     coverUrl: row.coverUrl ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    prayerSchedule: schedule ? mapPrayerScheduleRow(schedule) : null,
+  };
+}
+
+function mapPrayerScheduleRow(row: typeof prayerSchedules.$inferSelect): PrayerSchedule {
+  return {
+    mosqueId:      row.mosqueId,
+    fajrAdhan:     row.fajrAdhan,
+    fajrIqamah:    row.fajrIqamah ?? null,
+    dhuhrAdhan:    row.dhuhrAdhan,
+    dhuhrIqamah:   row.dhuhrIqamah ?? null,
+    asrAdhan:      row.asrAdhan,
+    asrIqamah:     row.asrIqamah ?? null,
+    maghribAdhan:  row.maghribAdhan,
+    maghribIqamah: row.maghribIqamah ?? null,
+    ishaAdhan:     row.ishaAdhan,
+    ishaIqamah:    row.ishaIqamah ?? null,
+    jummahTimes:   row.jummahTimes as PrayerSchedule["jummahTimes"],
+    createdAt:     row.createdAt.toISOString(),
+    updatedAt:     row.updatedAt.toISOString(),
   };
 }
 
@@ -118,7 +144,10 @@ export async function listMosques(
   const page = Math.max(params.page ?? 1, 1);
   const offset = (page - 1) * limit;
 
-  const conditions = [eq(mosques.verificationStatus, "verified")];
+  const conditions = [
+    eq(mosques.verificationStatus, "verified"),
+    eq(mosques.isPublished, true),
+  ];
 
   if (params.q) {
     const search = `%${params.q.toLowerCase()}%`;
@@ -187,11 +216,44 @@ export async function listMosques(
   const totalPages = Math.ceil(total / limit);
 
   return {
-    data: rows.map(mapMosqueRow),
+    data: rows.map((row) => mapMosqueRow(row)),
     page,
     limit,
     total,
     totalPages,
+  };
+}
+
+export async function listAllMosques(params: {
+  page?: number;
+  limit?: number;
+  status?: string;
+} = {}): Promise<PaginatedResult<Mosque>> {
+  const db = getDb();
+  const limit = Math.min(params.limit ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
+  const page = Math.max(params.page ?? 1, 1);
+  const offset = (page - 1) * limit;
+
+  const conditions = params.status
+    ? [eq(mosques.verificationStatus, params.status)]
+    : [];
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [rows, countResult] = await Promise.all([
+    db.select().from(mosques).where(whereClause)
+      .orderBy(asc(mosques.createdAt), asc(mosques.id))
+      .limit(limit).offset(offset),
+    db.select({ total: count() }).from(mosques).where(whereClause),
+  ]);
+
+  const total = Number(countResult[0].total);
+  return {
+    data: rows.map((row) => mapMosqueRow(row)),
+    page,
+    limit,
+    total,
+    totalPages: Math.ceil(total / limit),
   };
 }
 
@@ -210,10 +272,28 @@ export async function getMosqueByIdOrSlug(
   const rows = await db
     .select()
     .from(mosques)
-    .where(and(idCondition, eq(mosques.verificationStatus, "verified")))
+    .leftJoin(prayerSchedules, eq(prayerSchedules.mosqueId, mosques.id))
+    .where(and(idCondition, eq(mosques.verificationStatus, "verified"), eq(mosques.isPublished, true)))
     .limit(1);
 
-  return rows[0] ? mapMosqueRow(rows[0]) : undefined;
+  if (!rows[0]) return undefined;
+  return mapMosqueRow(rows[0].mosques, rows[0].prayer_schedules);
+}
+
+/** Super-admin lookup: returns mosque + schedule regardless of verification/visibility. */
+export async function getMosqueByIdForAdmin(
+  id: string,
+): Promise<Mosque | undefined> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(mosques)
+    .leftJoin(prayerSchedules, eq(prayerSchedules.mosqueId, mosques.id))
+    .where(eq(mosques.id, id))
+    .limit(1);
+
+  if (!rows[0]) return undefined;
+  return mapMosqueRow(rows[0].mosques, rows[0].prayer_schedules);
 }
 
 export async function nearbyMosques(
@@ -233,6 +313,7 @@ export async function nearbyMosques(
       ) / 1000.0 AS distance_km
     FROM mosques
     WHERE verification_status = 'verified'
+      AND is_published = true
       AND ST_DWithin(
         ST_SetSRID(ST_MakePoint(${mosques.lng}, ${mosques.lat}), 4326)::geography,
         ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
@@ -396,6 +477,20 @@ export async function updateMosqueVerificationStatus(
   return rows[0] ? mapMosqueRow(rows[0]) : undefined;
 }
 
+export async function updateMosqueVisibility(
+  id: string,
+  isPublished: boolean,
+): Promise<Mosque | undefined> {
+  const db = getDb();
+  const rows = await db
+    .update(mosques)
+    .set({ isPublished, updatedAt: new Date() })
+    .where(eq(mosques.id, id))
+    .returning();
+
+  return rows[0] ? mapMosqueRow(rows[0]) : undefined;
+}
+
 export async function updateMosqueClaimStatus(
   id: string,
   claimStatus: MosqueClaimStatus,
@@ -421,7 +516,6 @@ export async function getMosqueWithAdminEmail(
   mosqueId: string,
 ): Promise<{ mosque: Mosque; adminEmail: string; adminName: string } | undefined> {
   const db = getDb();
-  const { admins } = await import("../schemas/drizzle.schema.js");
   const rows = await db
     .select()
     .from(mosques)

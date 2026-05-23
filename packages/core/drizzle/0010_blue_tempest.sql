@@ -1,0 +1,1 @@
+ALTER TABLE "mosques" ADD COLUMN "is_published" boolean DEFAULT true NOT NULL;

@@ -64,6 +64,20 @@
       "when": 1775922543947,
       "tag": "0008_absent_siren",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779530611494,
+      "tag": "0009_lyrical_karnak",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779539057353,
+      "tag": "0010_blue_tempest",
+      "breakpoints": true
     }
   ]
 }
