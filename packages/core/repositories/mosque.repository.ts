@@ -280,16 +280,22 @@ export async function getMosqueByIdOrSlug(
   return mapMosqueRow(rows[0].mosques, rows[0].prayer_schedules);
 }
 
-/** Super-admin lookup: returns mosque + schedule regardless of verification/visibility. */
+/** Super-admin lookup: returns mosque + schedule regardless of verification/visibility. Accepts id or slug. */
 export async function getMosqueByIdForAdmin(
-  id: string,
+  idOrSlug: string,
 ): Promise<Mosque | undefined> {
   const db = getDb();
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+  const idCondition = isUuid
+    ? or(eq(mosques.id, idOrSlug), eq(mosques.slug, idOrSlug))
+    : eq(mosques.slug, idOrSlug);
+
   const rows = await db
     .select()
     .from(mosques)
     .leftJoin(prayerSchedules, eq(prayerSchedules.mosqueId, mosques.id))
-    .where(eq(mosques.id, id))
+    .where(idCondition)
     .limit(1);
 
   if (!rows[0]) return undefined;
