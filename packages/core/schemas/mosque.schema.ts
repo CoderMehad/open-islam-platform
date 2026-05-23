@@ -40,6 +40,23 @@ export const createMosque = z.object({
 
 export const updateMosque = createMosque.partial();
 
+const prayerScheduleResponse = z.object({
+  fajrAdhan:     z.string(),
+  fajrIqamah:    z.string().nullable(),
+  dhuhrAdhan:    z.string(),
+  dhuhrIqamah:   z.string().nullable(),
+  asrAdhan:      z.string(),
+  asrIqamah:     z.string().nullable(),
+  maghribAdhan:  z.string(),
+  maghribIqamah: z.string().nullable(),
+  ishaAdhan:     z.string(),
+  ishaIqamah:    z.string().nullable(),
+  jummahTimes:   z.array(z.object({
+    adhan:  z.string(),
+    iqamah: z.string().nullable(),
+  })),
+});
+
 export const mosqueResponse = z.object({
   id: z.string().uuid(),
   slug: z.string(),
@@ -48,8 +65,9 @@ export const mosqueResponse = z.object({
   city: z.string(),
   postcode: z.string(),
   country: z.string(),
-  phone: z.string().nullable(),
-  email: z.string().nullable(),
+  // Omitted from response when null — only present when the mosque has published a public contact
+  phone:   z.string().optional(),
+  email:   z.string().optional(),
   website: z.string().nullable(),
   lat: z.number(),
   lng: z.number(),
@@ -61,10 +79,12 @@ export const mosqueResponse = z.object({
   claimedBy: z.string().nullable(),
   claimedAt: z.string().nullable(),
   verificationStatus: verificationStatusEnum,
+  isPublished: z.boolean(),
   logoUrl: z.string().nullable(),
   coverUrl: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  prayerSchedule: prayerScheduleResponse.nullable(),
 });
 
 export const listQuery = z.object({

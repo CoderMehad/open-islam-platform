@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -41,6 +42,7 @@ export const mosques = pgTable(
     claimedBy: uuid("claimed_by"),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     verificationStatus: text("verification_status").notNull().default("pending"),
+    isPublished: boolean("is_published").notNull().default(true),
     logoUrl: text("logo_url"),
     coverUrl: text("cover_url"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -211,6 +213,29 @@ export const requestLogs = pgTable(
     index("request_logs_status_code_idx").on(table.statusCode),
   ],
 );
+
+// ── Prayer Schedules ─────────────────────────────────────────────────────────
+
+export const prayerSchedules = pgTable("prayer_schedules", {
+  id:            uuid("id").defaultRandom().primaryKey(),
+  mosqueId:      uuid("mosque_id").notNull()
+                   .references(() => mosques.id, { onDelete: "cascade" })
+                   .unique(),
+  fajrAdhan:     varchar("fajr_adhan",     { length: 10 }).notNull(),
+  fajrIqamah:    varchar("fajr_iqamah",    { length: 10 }),
+  dhuhrAdhan:    varchar("dhuhr_adhan",    { length: 10 }).notNull(),
+  dhuhrIqamah:   varchar("dhuhr_iqamah",   { length: 10 }),
+  asrAdhan:      varchar("asr_adhan",      { length: 10 }).notNull(),
+  asrIqamah:     varchar("asr_iqamah",     { length: 10 }),
+  maghribAdhan:  varchar("maghrib_adhan",  { length: 10 }).notNull(),
+  maghribIqamah: varchar("maghrib_iqamah", { length: 10 }),
+  ishaAdhan:     varchar("isha_adhan",     { length: 10 }).notNull(),
+  ishaIqamah:    varchar("isha_iqamah",    { length: 10 }),
+  // Array<{ adhan: string; iqamah: string | null }>
+  jummahTimes:   jsonb("jummah_times").notNull().default(sql`'[]'::jsonb`),
+  createdAt:     timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:     timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // ── Application Logs ────────────────────────────────────────────────────────
 

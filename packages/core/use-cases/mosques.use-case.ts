@@ -11,7 +11,9 @@ import { ConflictError } from "../errors.js";
 import { logger } from "../adapters/logger.adapter.js";
 import {
   listMosques,
+  listAllMosques,
   getMosqueByIdOrSlug as dbGetByIdOrSlug,
+  getMosqueByIdForAdmin as dbGetByIdForAdmin,
   nearbyMosques,
   insertMosque,
   updateMosque as dbUpdateMosque,
@@ -21,6 +23,7 @@ import {
   getMosqueWithAdminEmail as dbGetMosqueWithAdminEmail,
   updateMosqueClaimStatus as dbUpdateMosqueClaimStatus,
   updateMosqueVerificationStatus as dbUpdateMosqueVerificationStatus,
+  updateMosqueVisibility as dbUpdateMosqueVisibility,
   upsertImportedMosque,
 } from "../repositories/mosque.repository.js";
 import {
@@ -128,6 +131,10 @@ export async function getByIdOrSlug(
   return dbGetByIdOrSlug(idOrSlug);
 }
 
+export async function getByIdForAdmin(id: string): Promise<Mosque | undefined> {
+  return dbGetByIdForAdmin(id);
+}
+
 export async function nearby(
   params: NearbyParams,
 ): Promise<Array<Mosque & { distance_km: number }>> {
@@ -229,6 +236,20 @@ export async function updateVerificationStatus(
   return result;
 }
 
+export async function updateVisibility(
+  id: string,
+  isPublished: boolean,
+): Promise<Mosque | undefined> {
+  const result = await dbUpdateMosqueVisibility(id, isPublished);
+  if (result) {
+    logger.info("Mosque visibility updated", {
+      source: "mosques",
+      attributes: { mosqueId: id, isPublished },
+    });
+  }
+  return result;
+}
+
 export async function getWithAdminEmail(
   mosqueId: string,
 ): Promise<{ mosque: Mosque; adminEmail: string; adminName: string } | undefined> {
@@ -241,4 +262,18 @@ export async function remove(id: string): Promise<boolean> {
     logger.info("Mosque deleted", { source: "mosques", attributes: { mosqueId: id } });
   }
   return deleted;
+}
+
+export async function adminCreate(data: CreateMosqueData): Promise<Mosque> {
+  const mosque = await insertMosque(data);
+  logger.info("Mosque created by super-admin", { source: "mosques", attributes: { mosqueId: mosque.id, name: data.name } });
+  return mosque;
+}
+
+export async function listForAdmin(params: {
+  page?: number;
+  limit?: number;
+  status?: string;
+} = {}): Promise<import("../models/shared.model.js").PaginatedResult<Mosque>> {
+  return listAllMosques(params);
 }

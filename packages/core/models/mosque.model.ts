@@ -1,3 +1,7 @@
+import type { PrayerSchedule } from "./prayer-times.model.js";
+
+export type { PrayerSchedule };
+
 export type MosqueFacility =
   | "parking"
   | "wheelchair_access"
@@ -20,8 +24,8 @@ export interface Mosque {
   city: string;
   postcode: string;
   country: string;
-  phone: string | null;
-  email: string | null;
+  phone?: string;
+  email?: string;
   website: string | null;
   lat: number;
   lng: number;
@@ -33,10 +37,12 @@ export interface Mosque {
   claimedBy: string | null;
   claimedAt: string | null;
   verificationStatus: MosqueVerificationStatus;
+  isPublished: boolean;
   logoUrl: string | null;
   coverUrl: string | null;
   createdAt: string;
   updatedAt: string;
+  prayerSchedule: PrayerSchedule | null;
 }
 
 export interface MosqueSourceRecord {

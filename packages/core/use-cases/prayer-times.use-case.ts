@@ -1,12 +1,28 @@
-import type { PrayerTimeEntry } from "../models/prayer-times.model.js";
+import type { JummahSlot, PrayerSchedule, PrayerTimeEntry } from "../models/prayer-times.model.js";
 import type { PaginatedResult } from "../models/shared.model.js";
 import {
   getPrayerTimes,
   getTodayPrayerTimes,
   upsertPrayerTime,
   bulkUpsertPrayerTimes,
+  upsertPrayerSchedule,
+  getPrayerSchedule,
 } from "../repositories/prayer-times.repository.js";
 import { logger } from "../adapters/logger.adapter.js";
+
+export interface ScheduleData {
+  fajrAdhan: string;
+  fajrIqamah?: string | null;
+  dhuhrAdhan: string;
+  dhuhrIqamah?: string | null;
+  asrAdhan: string;
+  asrIqamah?: string | null;
+  maghribAdhan: string;
+  maghribIqamah?: string | null;
+  ishaAdhan: string;
+  ishaIqamah?: string | null;
+  jummahTimes?: JummahSlot[];
+}
 
 export interface GetOptions {
   date?: string;
@@ -65,4 +81,19 @@ export async function bulkUpsert(
   const result = await bulkUpsertPrayerTimes(mosqueId, entries);
   logger.info("Prayer times bulk upserted", { source: "prayer-times", attributes: { mosqueId, count: entries.length } });
   return result;
+}
+
+export async function upsertSchedule(
+  mosqueId: string,
+  data: ScheduleData,
+): Promise<PrayerSchedule> {
+  const result = await upsertPrayerSchedule(mosqueId, data);
+  logger.info("Prayer schedule upserted", { source: "prayer-times", attributes: { mosqueId } });
+  return result;
+}
+
+export async function getSchedule(
+  mosqueId: string,
+): Promise<PrayerSchedule | undefined> {
+  return getPrayerSchedule(mosqueId);
 }
